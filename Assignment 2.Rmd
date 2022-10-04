@@ -1,0 +1,138 @@
+---
+title: "Assignment 2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2022-10-01"
+---
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(psych)
+library(caret)
+library(FNN)
+library(class)
+library(dplyr)
+library(dummy)
+library(readr)
+```
+
+```{r}
+data <- read.csv("./UniversalBank.csv")
+```
+
+```{r}
+# Remove ID and Zip Code
+df=subset(data, select=-c(ID, ZIP.Code))
+```
+
+```{r}
+# Create dummy variables for education
+dummy_edu <- as.data.frame(dummy.code(df$Education))
+names(dummy_edu) <- c("Education.1", "Education.2","Education.3")
+df_without_education <- subset(df, select=-c(Education))
+bank_data <- cbind(df_without_education, dummy_edu)
+```
+
+```{r}
+Test_Data = data.frame(Age = as.integer(40), Experience = as.integer(10), Income = as.integer(84), Family = as.integer(2), CCAvg = as.integer(2), Education.1 = as.integer(0), Education.2 = as.integer(1), Education.3 = as.integer(0), Mortgage = as.integer(0), Securities.Account = as.integer(0), CD.Account = as.integer(0), Online = as.integer(1), CreditCard = as.integer(1))
+```
+
+```{r}
+# Partition data
+set.seed(1)
+
+Train_Index = createDataPartition(bank_data$Age, p=0.6, list=FALSE)
+Train_Data = bank_data[Train_Index,]
+Validation_Data = bank_data[-Train_Index,]
+Main_Data = bank_data
+```
+
+```{r}
+# Normalize
+
+# Copy the original data
+train.norm.df    <- Train_Data
+valid.norm.df    <- Validation_Data
+test.norm.df     <- Test_Data
+main.norm.df     <- Main_Data
+
+norm.values <- preProcess(Train_Data[,-7], method=c("center", "scale"))
+train.norm.df[,-7] <- predict(norm.values, Train_Data[,-7])
+valid.norm.df [,-7]<- predict(norm.values, Validation_Data[,-7])
+test.norm.df <- predict(norm.values, Test_Data)
+main.norm.df[,-7] <- predict(norm.values, bank_data[,-7])
+```
+
+```{r}
+prediction <- knn(train = train.norm.df[,-7], test = test.norm.df, cl = train.norm.df[,7], k = 1, prob = TRUE)
+head(prediction)
+
+# The customer is classified as 0 (not having accepted the loan)
+```
+
+```{r}
+accuracy.df <- data.frame(k = seq(1, 14, 1), accuracy = rep(0, 14))
+# compute knn for different k on validation.
+for(i in 1:14) {
+  prediction <- knn(train.norm.df[, -7], valid.norm.df[, -7], 
+                  cl = train.norm.df[, 7], k = i, prob=TRUE)
+   accuracy.df[i, 2] <- confusionMatrix(prediction, as.factor(valid.norm.df[,7]))$overall[1]
+}
+
+accuracy.df
+
+# k=3 balances between overfitting and ignoring the predictor information
+```
+
+```{r}
+prediction_test <- knn(train = train.norm.df[,-7],test = valid.norm.df[,-7], cl = train.norm.df[,7], k=3, prob=TRUE)
+confusionMatrix(prediction_test, as.factor(valid.norm.df[,7]))
+```
+
+```{r}
+# Using best k
+prediction <- knn(train = main.norm.df[,-7], test = Test_Data, cl = main.norm.df[,7], k = 3, prob = TRUE)
+head(prediction)
+# Customer is classified as Personal.Loan = 1 when k = 3, the customer would have accepted the loan
+```
+```{r}
+# Repartition data
+
+Test_Index_1 = createDataPartition(bank_data$Age, p=0.2, list=FALSE)
+Test_Data_1 = bank_data[Test_Index_1,]
+
+train_val_data = bank_data[-Test_Index_1,]
+
+Train_Index_1 = createDataPartition(train_val_data$Age, p=0.6245, list=FALSE)
+Train_Data_1 = train_val_data[Train_Index_1,]
+Validation_Data_1 = train_val_data[-Train_Index_1,]
+```
+
+```{r}
+# Copy the original data
+train.norm.df_1 <- Train_Data_1
+valid.norm.df_1 <- Validation_Data_1
+test.norm.df_1 <- Test_Data_1
+train_val_data.norm.df <- train_val_data
+
+norm.values_1 <- preProcess(Train_Data_1[,-7], method=c("center", "scale"))
+train.norm.df_1[,-7] <- predict(norm.values_1, Train_Data_1[,-7])
+valid.norm.df_1[,-7] <- predict(norm.values_1, Validation_Data_1[,-7])
+test.norm.df_1[,-7] <- predict(norm.values_1, test.norm.df_1[,-7])
+```
+
+```{r}
+test_knn <- knn(train = train.norm.df_1[,-7], test = test.norm.df_1[,-7], cl = train.norm.df_1[,7], k = 3, prob=TRUE)
+valid_knn <- knn(train = train.norm.df_1[,-7], test = valid.norm.df_1[,-7], cl = train.norm.df_1[,7], k = 3, prob=TRUE)
+train_knn <- knn(train = train.norm.df_1[,-7], test = train.norm.df_1[,-7], cl = train.norm.df_1[,7], k = 3, prob=TRUE)
+
+confusionMatrix(test_knn, as.factor(test.norm.df_1[,7]))
+confusionMatrix(valid_knn, as.factor(valid.norm.df_1[,7]))
+confusionMatrix(train_knn, as.factor(train.norm.df_1[,7]))
+```
+
