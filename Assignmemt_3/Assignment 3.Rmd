@@ -1,0 +1,95 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(caret)
+library(reshape2)
+library(e1071)
+```
+
+
+```{r}
+bank = read.csv("UniversalBank.csv")
+head(bank)
+summary(bank)
+```
+
+```{r}
+bank$Personal.Loan <- factor(bank$Personal.Loan)
+bank$Online <- factor(bank$Online)
+bank$CreditCard <- factor(bank$CreditCard)
+```
+
+```{r}
+set.seed(2022)
+Train_Index <- createDataPartition(bank$Personal.Loan, p = 0.6, list = FALSE)
+Train_Data <- bank[Train_Index,]
+Validation_Data <- bank[-Train_Index,]
+```
+
+```{r}
+# A
+
+Pivot_Table <- xtabs(~ CreditCard + Personal.Loan + Online, data = Train_Data)
+ftable(Pivot_Table)
+```
+
+```{r}
+# B
+
+# Calculate the probability of loan acceptance for Loan = 1 CC = 1 and Online = 1
+
+# Probability of CC and Online users
+(45/519)
+
+# Probability of 3,000 Test_Data users
+(45/3000)
+```
+
+```{r}
+# C
+
+Pivot_Loan_Online = table(Personal.Loan = Train_Data$Personal.Loan, Online = Train_Data$Online)
+Pivot_Loan_Online
+Pivot_Loan_CC = table(Personal.Loan = Train_Data$Personal.Loan, CreditCard = Train_Data$CreditCard)
+Pivot_Loan_CC
+```
+
+```{r}
+# D
+
+# 1. P(CC=1 | Loan=1)
+P1 <- 84/(84+204)
+# 2. P(Online=1 | Loan=1)
+P2 <- 168/(168+120)
+# 3. P(Loan=1)
+P3 <- 288/(288+(3000-288))
+# 4. P(CC=1 | Loan=0)
+P4 <- 808/(808+1904)
+# 5. P(Online=1 | Loan=0)
+P5 <- 1589/(1589+1123)
+# 6. P(Loan=0)
+P6 <- 2712/3000
+```
+
+```{r}
+# E
+(P1*P2*P3)/((P1*P2*P3) +(P4*P5*P6))
+```
+
+```{r}
+# F
+
+# Both values are similiar, but the method in E is a more accurate estimate. The result in B are highly dependent upon how the pivot table shakes out and the data selected.
+```
+
+```{r}
+# G
+nb_model <- naiveBayes(Personal.Loan ~ Online + CreditCard, data = Train_Data)
+predict(nb_model, data.frame(Online=1, CreditCard= 1), type = 'raw')
+
+# The output is closest to what is found in E
+```
+
