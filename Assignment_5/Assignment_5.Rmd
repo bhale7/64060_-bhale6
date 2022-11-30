@@ -1,0 +1,131 @@
+---
+title: "Assignment_5"
+author: "Brenden Hale"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+library(analogue)
+library(cluster)
+library(factoextra)
+library(caret)
+library(Rfast)
+library(ISLR)
+```
+
+```{r}
+# Load cereal.csv
+cereal <- read.csv("Cereals.csv")
+head(cereal)
+summary(cereal)
+set.seed(123)
+```
+# Data preprocessing
+```{r}
+# Normalizing data
+rownames(cereal) <- cereal$name
+cereal <- cereal[,c(-1:-3)]
+cereal_scaled <- scale(cereal[,1:13])
+
+# Remove all cereals with missing values
+cereal.norm <- na.omit(cereal_scaled)
+```
+# Part 1
+Apply hierarchical clustering to the data using Euclidean distance to the normalized 
+measurements. Use Agnes to compare the clustering from  single linkage, complete 
+linkage, average linkage, and Ward. Choose the best method. 
+```{r}
+# Dissimilarity matrix
+d <- dist(cereal.norm, method = "euclidean")
+```
+
+```{r}
+# Hierarchical clustering
+# Single linkage
+hc_single <- agnes(d, method = "single")
+hc_single$ac
+
+# Complete linkage
+hc_complete <- agnes(d, method = "complete")
+hc_complete$ac
+
+# Average linkage
+hc_average <- agnes(d, method = "average")
+hc_average$ac
+
+# Ward
+hc_ward <- agnes(d, method = "ward")
+hc_ward$ac
+
+d_ward <- hclust(d, method = "ward.D")
+plot(d_ward, cex = 0.6, hang = -1)
+
+# The best method is the Ward method because it is the closest value to 1
+```
+# Part 2
+How many clusters would you choose?
+
+```{r}
+plot(d_ward, cex = 0.6, hang = -1)
+rect.hclust(d_ward, k = 4, border = 1:4)
+clusters.4 <- cutree(d_ward, k = 4)
+clustered_cereal <- as.data.frame(cbind(cereal.norm, clusters.4))
+
+# The optimal number of clusters appears to be 4 clusters
+```
+# Part 3
+Comment on the structure of the clusters and on their stability. Hint: To check stability,  
+partition the data and see how well clusters formed based on one part apply to the other 
+part.
+
+```{r}
+# First partition the data. Using 75% for cereal_A and 25% for cereal B
+cereal_A <- cereal.norm[1:55,]
+cereal_B <- cereal.norm[56:74,]
+
+# Use cluster centroids and plot
+cereal_A_distance <- dist(cereal_A, method = "euclidean")
+cereal_A_hclust = hclust(cereal_A_distance, method = "ward.D")
+plot(cereal_A_hclust, cex = 0.6, hang = -1)
+rect.hclust(cereal_A_hclust, k = 4, border = 1:4)
+
+clustered_cereal_A <- cutree(cereal_A_hclust, k = 4)
+clusters_A <- as.data.frame(cbind(cereal_A, clustered_cereal_A))
+
+# Identify 4 clusters
+clust.1 <- colMeans(clusters_A[clusters_A$clustered_cereal_A == "1",])
+clust.2 <- colMeans(clusters_A[clusters_A$clustered_cereal_A == "2",])
+clust.3 <- colMeans(clusters_A[clusters_A$clustered_cereal_A == "3",])
+clust.4 <- colMeans(clusters_A[clusters_A$clustered_cereal_A == "4",])
+
+centroid <- rbind(clust.1,clust.2,clust.3,clust.4)
+cluster_distance <- rowMins(distance(cereal_B, centroid[,-14]))
+partition <- c(clusters_A$clustered_cereal_A, cluster_distance)
+clustered_cereals_AB <- cbind(clustered_cereal, partition)
+
+# Full data set comparison vs the test (cereals B)
+table(clustered_cereals_AB$clusters.4==clustered_cereals_AB$partition)
+table(clustered_cereals_AB$clusters.4[56:74]==clustered_cereals_AB$partition[56:74])
+
+# As witnessed by the two comparison tables above, the stability of the clusters is 86.15% consistent while the partitioned test data (B) is 94.44% consistent representing that clusters are stable
+```
+# Part 4
+The elementary public schools would like to choose a set of cereals to include in their daily cafeterias. Every day a different cereal is offered, but all cereals should support a healthy diet. For this goal, you are requested to find a cluster of “healthy cereals.” Should the data be normalized? If not, how should they be used in the cluster analysis?
+```{r}
+# The data should not be normalized because it's important we analyze the actual values and not the scaled ones
+
+schools_cluster <- as.data.frame(cbind(na.omit(cereal),clusters.4))
+
+colMeans(schools_cluster[schools_cluster$clusters.4==1,])
+colMeans(schools_cluster[schools_cluster$clusters.4==2,])
+colMeans(schools_cluster[schools_cluster$clusters.4==3,])
+colMeans(schools_cluster[schools_cluster$clusters.4==4,])
+
+# Cluster one resembles the best cluster for schools to select. It has the lowest calories, highest protein, close to the lowest fat, low carbohydrates, low sugar, and the highest rating
+```
+
+
+
+
