@@ -1,6 +1,8 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 ```{r}
@@ -62,16 +64,22 @@ Pivot_Loan_CC
 
 # 1. P(CC=1 | Loan=1)
 P1 <- 84/(84+204)
+P1
 # 2. P(Online=1 | Loan=1)
 P2 <- 168/(168+120)
+P2
 # 3. P(Loan=1)
 P3 <- 288/(288+(3000-288))
+P3
 # 4. P(CC=1 | Loan=0)
 P4 <- 808/(808+1904)
+P4
 # 5. P(Online=1 | Loan=0)
 P5 <- 1589/(1589+1123)
+P5
 # 6. P(Loan=0)
 P6 <- 2712/3000
+P6
 ```
 
 ```{r}
@@ -88,8 +96,9 @@ P6 <- 2712/3000
 ```{r}
 # G
 nb_model <- naiveBayes(Personal.Loan ~ Online + CreditCard, data = Train_Data)
+nb_model
 predict(nb_model, data.frame(Online=1, CreditCard= 1), type = 'raw')
 
-# The output is closest to what is found in E
+# The output is closest to what is found in E, both output .09
 ```
 
